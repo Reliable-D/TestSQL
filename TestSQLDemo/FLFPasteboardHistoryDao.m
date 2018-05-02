@@ -17,8 +17,11 @@ static NSString* const FLFPasteboardHistoryUnknowUser = @"unknow";
 @interface FLFPasteboardHistoryDao ()
 {
     dispatch_queue_t    m_queue;
-    FMDatabase          *m_db;
 }
+
+@property (nonatomic, strong) FMDatabase     *db;
+
+@property (nonatomic, strong) NSDateFormatter     *dateFormatter;
 
 @end
 
@@ -45,26 +48,30 @@ static FLFPasteboardHistoryDao *sharedPasteboardHistoryDao = nil;
     
     if (self)
     {
-        NSString* dir = [[FLFPasteboardHistoryDao filePath] stringByDeletingLastPathComponent];
+        NSString* path = [FLFPasteboardHistoryDao filePath];
+        NSString* dir = [path stringByDeletingLastPathComponent];
         if (NO == [[NSFileManager defaultManager] fileExistsAtPath:dir isDirectory:NULL])
         {
             [[NSFileManager defaultManager] createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil];
         }
-        m_db = [FMDatabase databaseWithPath:[FLFPasteboardHistoryDao filePath]];
-        if (![m_db open])
+        self.db = [FMDatabase databaseWithPath:path];
+        if (![self.db open])
         {
             NSLog(@"could not open dataBase !");
             return nil;
         }
         else
         {
-            [m_db setShouldCacheStatements:NO];
+            [self.db setShouldCacheStatements:NO];
         }
         
         if ([self checkToCreateTable])
         {
             m_queue = dispatch_queue_create("com.51fanli.queue.favoriteInfoDao", DISPATCH_QUEUE_SERIAL);
         }
+        
+        self.dateFormatter = [[NSDateFormatter alloc] init];
+        [self.dateFormatter setDateFormat: @"yyyy-MM-dd"];
     }
     
     return self;
@@ -74,15 +81,13 @@ static FLFPasteboardHistoryDao *sharedPasteboardHistoryDao = nil;
 - (BOOL)isHistoryPasteboard:(NSString*)text withExpiredTimeControl:(NSNumber*)expiredTimeControl uid:(NSString*)uid
 {
     __block BOOL isHistory = NO;//默认在不历史列表里
-//    CONDITION_CHECK_RETURN_VAULE(text.length > 0, isHistory);
-    
     dispatch_sync(m_queue, ^{
         @autoreleasepool
         {
             //NSString* userId = uid.length > 0 ? uid : FLFPasteboardHistoryUnknowUser;
             NSNumber* expired = expiredTimeControl ?:@(7);
-            NSString *sqlStr = [NSString stringWithFormat:@"SELECT * FROM %@ WHERE content = ? AND date('now', '-%zd day') < date(createdTime)", DatabaseTablePasteboardHistory,expired.integerValue];
-            FMResultSet *result = [m_db executeQuery:sqlStr];
+             NSString *sqlStr = [NSString stringWithFormat:@"SELECT * FROM %@ WHERE content = ? AND julianday('%@') - julianday(createdTime) <= %zd", DatabaseTablePasteboardHistory,[self.dateFormatter stringFromDate:[NSDate date]],expired.integerValue];
+            FMResultSet *result = [self.db executeQuery:sqlStr, text];
             if ([result next])
             {
                 isHistory = YES;
@@ -91,22 +96,18 @@ static FLFPasteboardHistoryDao *sharedPasteboardHistoryDao = nil;
         }
     });
     
-    if (NO == isHistory) {
-        [self insertPasteboardToHistoryPasteboard:text uid:uid];
-    }
-    
     return isHistory;
 }
 
-- (void)insertPasteboardToHistoryPasteboard:(NSString*)text uid:(NSString*)uid
+- (void)insertPasteboardToHistoryPasteboard:(NSString*)text uid:(NSString*)uid time:(NSString*)time
 {
     dispatch_sync(m_queue, ^{
         @autoreleasepool
         {
             NSString* userId = uid.length > 0 ? uid : FLFPasteboardHistoryUnknowUser;
-            NSDate* time = [NSDate date];//[NSDate dateWithTimeIntervalSince1970:[[FLBGeneralDataCenter defaultDataCenter] getServerTimeStamp]];
+            //[NSDate dateWithTimeIntervalSince1970:[[FLBGeneralDataCenter defaultDataCenter] getServerTimeStamp]];
             NSString *sqlStr = [NSString stringWithFormat:@"INSERT INTO %@(content, userId, createdTime) VALUES (?,?,?)", DatabaseTablePasteboardHistory];
-            [m_db executeUpdate:sqlStr, text, userId, time];
+            [self.db executeUpdate:sqlStr, text, userId, time];
         }
     });
 }
@@ -117,8 +118,8 @@ static FLFPasteboardHistoryDao *sharedPasteboardHistoryDao = nil;
         @autoreleasepool
         {
             NSNumber* expired = expiredTimeControl ?:@(7);
-            NSString *sqlStr = [NSString stringWithFormat:@"DELETE FROM %@ WHERE WHERE ? >= date(createdTime)", DatabaseTablePasteboardHistory,expired.integerValue];
-            [m_db executeUpdate:sqlStr,[NSDate date]];
+            NSString *sqlStr = [NSString stringWithFormat:@"DELETE FROM %@ WHERE julianday('%@') - julianday(createdTime) > %zd", DatabaseTablePasteboardHistory, [self.dateFormatter stringFromDate:[NSDate date]],expired.integerValue];
+            [self.db executeUpdate:sqlStr];
         }
     });
 }
@@ -127,13 +128,13 @@ static FLFPasteboardHistoryDao *sharedPasteboardHistoryDao = nil;
 + (NSString *)fileDirectory
 {
     NSString *documentsDirectory = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches"];
-    NSLog(@"documentsDirectory:%@",documentsDirectory);
     return [documentsDirectory stringByAppendingPathComponent:@"PasteboardHistory"];
 }
 
 + (NSString *)filePath
 {
-    NSString *filePath = [[self fileDirectory] stringByAppendingPathComponent:@"db"];
+    NSString *filePath = [[self fileDirectory] stringByAppendingPathComponent:@"PasteboardHistory.db"];
+    NSLog(@"filePath:%@",filePath);
     return filePath;
 }
 
@@ -141,9 +142,9 @@ static FLFPasteboardHistoryDao *sharedPasteboardHistoryDao = nil;
 {
     BOOL result = YES;
     
-    if (NO == [m_db tableExists:DatabaseTablePasteboardHistory])
+    if (NO == [self.db tableExists:DatabaseTablePasteboardHistory])
     {
-        result = [m_db executeUpdate:[NSString stringWithFormat:@"CREATE TABLE IF NOT EXISTS %@ (id integer primary key autoincrement, content text, userId text, createdTime datetime)", DatabaseTablePasteboardHistory]];
+        result = [self.db executeUpdate:[NSString stringWithFormat:@"CREATE TABLE IF NOT EXISTS %@ (id integer primary key autoincrement, content text, userId text, createdTime datetime)", DatabaseTablePasteboardHistory]];
     }
     
     return result;

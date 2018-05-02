@@ -14,7 +14,7 @@
 
 - (BOOL)isHistoryPasteboard:(NSString*)text withExpiredTimeControl:(NSNumber*)expiredTimeControl uid:(NSString*)uid;
 
-- (void)insertPasteboardToHistoryPasteboard:(NSString*)text uid:(NSString*)uid;
+- (void)insertPasteboardToHistoryPasteboard:(NSString*)text uid:(NSString*)uid time:(NSString*)time;
 
 - (void)cleanUpExpiredHistoryWithTimeControl:(NSNumber*)expiredTimeControl;
 

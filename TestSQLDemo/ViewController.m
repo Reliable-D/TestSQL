@@ -12,6 +12,7 @@
 @interface ViewController ()
 @property (weak, nonatomic) IBOutlet UITextField *tf;
 @property (weak, nonatomic) IBOutlet UITextField *expired;
+@property (weak, nonatomic) IBOutlet UITextField *time;
 
 @end
 
@@ -23,7 +24,7 @@
 }
 
 - (IBAction)clickBtn:(UIButton *)sender {
-    [[FLFPasteboardHistoryDao standardDao] insertPasteboardToHistoryPasteboard:self.tf.text uid:nil];
+    [[FLFPasteboardHistoryDao standardDao] insertPasteboardToHistoryPasteboard:self.tf.text uid:nil time:self.time.text];
 }
 - (IBAction)clickCleanUp:(UIButton *)sender {
     [[FLFPasteboardHistoryDao standardDao] cleanUpExpiredHistoryWithTimeControl:@(self.expired.text.integerValue)];
