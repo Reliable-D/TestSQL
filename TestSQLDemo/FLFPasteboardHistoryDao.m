@@ -12,7 +12,7 @@
 
 static NSString* const DatabaseTablePasteboardHistory = @"t_pasteboardhistory";
 
-static NSString* const FLFPasteboardHistoryUnknowUser = @"unknow";
+//static NSString* const FLFPasteboardHistoryUnknowUser = @"NULL";
 
 @interface FLFPasteboardHistoryDao ()
 {
@@ -104,10 +104,10 @@ static FLFPasteboardHistoryDao *sharedPasteboardHistoryDao = nil;
     dispatch_sync(m_queue, ^{
         @autoreleasepool
         {
-            NSString* userId = uid.length > 0 ? uid : FLFPasteboardHistoryUnknowUser;
+//            NSString* userId = uid.length > 0 ? uid : FLFPasteboardHistoryUnknowUser;
             //[NSDate dateWithTimeIntervalSince1970:[[FLBGeneralDataCenter defaultDataCenter] getServerTimeStamp]];
             NSString *sqlStr = [NSString stringWithFormat:@"INSERT INTO %@(content, userId, createdTime) VALUES (?,?,?)", DatabaseTablePasteboardHistory];
-            [self.db executeUpdate:sqlStr, text, userId, time];
+            [self.db executeUpdate:sqlStr, text, uid.length>0?uid:[NSNull null], time];
         }
     });
 }

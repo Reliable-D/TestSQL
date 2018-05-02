@@ -13,6 +13,7 @@
 @property (weak, nonatomic) IBOutlet UITextField *tf;
 @property (weak, nonatomic) IBOutlet UITextField *expired;
 @property (weak, nonatomic) IBOutlet UITextField *time;
+@property (weak, nonatomic) IBOutlet UITextField *uid;
 
 @end
 
@@ -24,13 +25,13 @@
 }
 
 - (IBAction)clickBtn:(UIButton *)sender {
-    [[FLFPasteboardHistoryDao standardDao] insertPasteboardToHistoryPasteboard:self.tf.text uid:nil time:self.time.text];
+    [[FLFPasteboardHistoryDao standardDao] insertPasteboardToHistoryPasteboard:self.tf.text uid:self.uid.text time:self.time.text];
 }
 - (IBAction)clickCleanUp:(UIButton *)sender {
     [[FLFPasteboardHistoryDao standardDao] cleanUpExpiredHistoryWithTimeControl:@(self.expired.text.integerValue)];
 }
 - (IBAction)clickCheck:(UIButton *)sender {
-    [[FLFPasteboardHistoryDao standardDao] isHistoryPasteboard:self.tf.text withExpiredTimeControl:@(self.expired.text.integerValue) uid:nil];
+    [[FLFPasteboardHistoryDao standardDao] isHistoryPasteboard:self.tf.text withExpiredTimeControl:@(self.expired.text.integerValue) uid:self.uid.text];
 }
 
 - (void)didReceiveMemoryWarning {
